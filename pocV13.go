@@ -15,6 +15,9 @@ import (
 		 "text/tabwriter"
 		 "encoding/csv"
 		 "time"
+		 "archive/zip"
+		 "path/filepath"
+		 "io"
 )
 
 var(
@@ -62,7 +65,7 @@ type Target struct {
 
 func geoCheck(ipAdd string) string {
 	if ipAdd != "" {
-		db, err := maxminddb.Open("GeoLite2-City.mmdb")
+		db, err := maxminddb.Open("Geo/Geo/GeoLite2-City.mmdb")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -570,9 +573,78 @@ func printDescription(){
 
 	}
 
+	func Unzip(src string, dest string) ([]string, error) {
+
+	var filenames []string
+
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return filenames, err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+
+		rc, err := f.Open()
+		if err != nil {
+			return filenames, err
+		}
+		defer rc.Close()
+
+		// Store filename/path for returning and using later on
+		fpath := filepath.Join(dest, f.Name)
+
+		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
+		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return filenames, fmt.Errorf("%s: illegal file path", fpath)
+		}
+
+		filenames = append(filenames, fpath)
+
+		if f.FileInfo().IsDir() {
+
+			// Make Folder
+			os.MkdirAll(fpath, os.ModePerm)
+
+		} else {
+
+			// Make File
+			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+				return filenames, err
+			}
+
+			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return filenames, err
+			}
+
+			_, err = io.Copy(outFile, rc)
+
+			// Close the file without defer to close before next iteration of loop
+			outFile.Close()
+
+			if err != nil {
+				return filenames, err
+			}
+
+		}
+	}
+	return filenames, nil
+}
+
 // helper function to specify permutation attacks to be performed
 
 func main (){
+
+	// check if geolocation database is zipped, if so unzip
+	if _, err := os.Stat("Geo.zip"); !os.IsNotExist(err) {
+		_, err := Unzip("Geo.zip", "Geo")
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Remove("Geo.zip")
+	}
+
 	printLogo()
 	fmt.Println("\n\n")
 	y.Println("Welcome to Go Permutation Tool")
