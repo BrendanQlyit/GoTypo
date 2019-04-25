@@ -82,9 +82,13 @@ func geoCheck(ipAdd string) string {
 
 func omissionAttack(domain string) []string {
 	results := []string{}
-	for i := range domain{
+	for i := 0; i < len(domain)-1; i++{
+		//Prevent duplicates
+		if domain[i] != domain[i +1]{
 		results = append(results, fmt.Sprintf("%s%s", domain[:i], domain[i+1:]))
+		}
 	}
+	results = append(results, fmt.Sprintf("%s", domain[:len(domain)-1]))
 	total = total + len(results)
 	return results
 }
@@ -135,7 +139,7 @@ func homographAttack(domain string) []string {
 		'd': {'b', 'ԁ', 'ժ', 'ɗ', 'đ'}, // 'cl', 'dl', 'di'
 		'e': {'é', 'ê', 'ë', 'ē', 'ĕ', 'ě', 'ė', 'е', 'ẹ', 'ę', 'є', 'ϵ', 'ҽ'},
 		'f': {'Ϝ', 'ƒ', 'Ғ'},
-		'g': {'q', 'ɢ', 'ɡ', 'Ԍ', 'Ԍ', 'ġ', 'ğ', 'ց', 'ǵ', 'ģ'},
+		'g': {'q', 'ɢ', 'ɡ', 'Ԍ', 'ġ', 'ğ', 'ց', 'ǵ', 'ģ'},
 		'h': {'һ', 'հ', '\u13C2', 'н'}, // 'lh', 'ih'
 		'i': {'1', 'l', '\u13A5', 'í', 'ï', 'ı', 'ɩ', 'ι', 'ꙇ', 'ǐ', 'ĭ'},
 		'j': {'ј', 'ʝ', 'ϳ', 'ɉ'},
@@ -143,7 +147,7 @@ func homographAttack(domain string) []string {
 		'l': {'1', 'i', 'ɫ', 'ł'},
 		'm': {'n', 'ṃ', 'ᴍ', 'м', 'ɱ'}, // 'nn', 'rn', 'rr'
 		'n': {'m', 'r', 'ń'},
-		'o': {'0', 'Ο', 'ο', 'О', 'о', 'Օ', 'ȯ', 'ọ', 'ỏ', 'ơ', 'ó', 'ö', 'ӧ', 'ｏ'},
+		'o': {'0', 'Օ', 'ȯ', 'ọ', 'ỏ', 'ơ', 'ó', 'ö', 'ӧ', 'ｏ'},
 		'p': {'ρ', 'р', 'ƿ', 'Ϸ', 'Þ'},
 		'q': {'g', 'զ', 'ԛ', 'գ', 'ʠ'},
 		'r': {'ʀ', 'Г', 'ᴦ', 'ɼ', 'ɽ'},
@@ -316,8 +320,7 @@ func getCsvOption() bool {
 	if csvOption == "y" || csvOption == "yes"{
 		return true
 	}
-	return false
-
+		return false
 }
 
 func getOption() int{
@@ -397,7 +400,7 @@ func runLookups(technique string, results []string, tld string, out chan<- Recor
 
 func printReport(technique string, results []string, tld string) {
 	out := make(chan Record)
-	w.Init(os.Stdout, 18, 8, 0, '\t', 0)
+	w.Init(os.Stdout, 18, 8, 4, '\t', 0)
 
 	if option == 3 || option == 4{
 		runLookups(technique, results, tld, out)
@@ -444,7 +447,6 @@ func (r *Record) printRecordData(writer *tabwriter.Writer) {
 			fmt.Fprintln(writer, r.Technique+"\t"+r.Domain+"\t"+"IP:"+r.A+"\t")
 			writer.Flush()
 		}
-
 	}
 
 func printLogo(){
@@ -513,7 +515,11 @@ func printDescription(){
 			{"Omission", sepDomain, omissionAttack},
 			{"TLD", sepDomain, tldAttack}} {
 			for _, r := range t.Function(t.TargetDomain) {
+				if(strings.Contains(r, ".")){
+					results = append(results, []string{r,  t.Technique})
+				}else{
 				results = append(results, []string{r + "." + tld, t.Technique})
+				}
 			}
 		}
 	}
@@ -647,7 +653,7 @@ if performLookUp(domain) == "" {
 	}
 
 	getOption()
-
+				domain = strings.ToLower(domain)
 				sepDomain, tld := sepInput(domain)
 				targets := []string{sepDomain + "." + tld}
 				runPermutations(targets)
